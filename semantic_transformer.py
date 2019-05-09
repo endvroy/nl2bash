@@ -4,24 +4,56 @@ from bash_parser.normalize_tokens import get_normalize_tokens
 from bash_parser import bash_loader
 
 
+def reparse_arg(lexeme):
+    input_stream = bash_loader.InputStream(lexeme)
+    lexer = bash_loader.BashLexer(input_stream)
+    stream = bash_loader.CommonTokenStream(lexer)
+    parser = bash_loader.BashParser(stream)
+    tree = parser.arg()
+    visitor = bash_loader.BashASTVisitor()
+    ast = visitor.visit(tree)
+    return ast
+
+
 def get_nast(line):
     return lint.normalize_ast(line)
 
 
 def nast2ast(nast):
+    # todo: need better structure
     # nast node types: root, utility, flag, argument
     if not nast.children:
         # leaf node
         if nast.kind == 'argument':
             return BashAST(kind=nast.arg_type, value=nast.value)
         else:
+            # flag or utility
             return BashAST(kind=nast.kind, value=nast.value)
     else:
         children = [nast2ast(n) for n in nast.children]
         return BashAST(kind=nast.kind, value=nast.value, children=children)
 
 
+def unmask_ast(ast, name_subst_map):
+    if not hasattr(ast, 'children'):
+        # leaf node
+        # todo: split subtoken (or reparse)
+        if ast.value in name_subst_map:
+            # masked
+            # todo: reparse arg
+            ast.value = name_subst_map[ast.value]
+        else:
+            return ast
+    else:
+        # todo: transform back to normal form?
+        return BashAST(kind=ast.kind,
+                       value=ast.value,
+                       children=[unmask_ast(c, name_subst_map)
+                                 for c in ast.children])
+
+
 def sem_trans_ast(ast):
+    # todo: find the base case
     if ast.kind == 'cmd':
         tmp_ast = BashAST(kind='cmd', prog=ast.prog, args=ast.args,
                           assign_list=[], redir=[])
@@ -52,10 +84,13 @@ def sem_trans_ast(ast):
         assert masked_ast.kind == 'root' and len(masked_ast.children) == 1
         util_node = masked_ast.children[0]
 
-        for child in util_node.children:
-            pass
-
-        return util_node
+        unmasked = unmask_ast(util_node, name_subst_map)
+        # todo: continue working on subparts if necessary (maybe via recurse?)
+        # todo: add back assign and redir
+        return unmasked
+    else:
+        # todo: recurse
+        pass
 
 
 if __name__ == '__main__':
