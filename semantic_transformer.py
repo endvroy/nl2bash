@@ -8,7 +8,7 @@ def get_nast(line):
     return lint.normalize_ast(line)
 
 
-def transform_nast(nast):
+def nast2ast(nast):
     # nast node types: root, utility, flag, argument
     if not nast.children:
         # leaf node
@@ -17,7 +17,7 @@ def transform_nast(nast):
         else:
             return BashAST(kind=nast.kind, value=nast.value)
     else:
-        children = [transform_nast(n) for n in nast.children]
+        children = [nast2ast(n) for n in nast.children]
         return BashAST(kind=nast.kind, value=nast.value, children=children)
 
 
@@ -28,7 +28,7 @@ def sem_trans_ast(ast):
         # mask the args
         # todo: gather info from children in case of substitution
         name_subst_map = {}
-        subst_template = '#SUBST_{}#'
+        subst_template = '__SUBST_{}__'
         for i, arg in enumerate(tmp_ast.args):
             # only mask arg containing subst
             for part in arg.parts:
@@ -41,14 +41,14 @@ def sem_trans_ast(ast):
                                  'dquote_str']:
                     mask = subst_template.format(i)
                     name_subst_map[mask] = arg
-                    tmp_ast.args[i] = BashAST(kind='arg', parts=[mask])
+                    tmp_ast.args[i] = BashAST(kind='arg', parts=[BashAST(kind='MASK', value=mask)])
                     break
         tmp_tokens = get_normalize_tokens(tmp_ast)
         tmp_line = ''.join(tmp_tokens)
 
         # get semantic info and transform the nast back to ast
         nast = lint.normalize_ast(tmp_line)
-        masked_ast = transform_nast(nast)
+        masked_ast = nast2ast(nast)
         assert masked_ast.kind == 'root' and len(masked_ast.children) == 1
         util_node = masked_ast.children[0]
 
