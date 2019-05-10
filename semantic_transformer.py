@@ -2,6 +2,7 @@ from bashlint import lint
 from bash_parser.bash_ast import BashAST
 from bash_parser.normalize_tokens import get_normalize_tokens
 from bash_parser import bash_loader
+import copy
 
 
 def reparse_arg(lexeme):
@@ -47,21 +48,14 @@ def nast_arg2ast(nast):
 
 
 def unmask_ast(ast, name_subst_map):
-    if not hasattr(ast, 'children'):
-        # leaf node
-        # todo: split subtoken (or reparse)
-        if ast.value in name_subst_map:
-            # masked
-            # todo: reparse arg
-            ast.value = name_subst_map[ast.value]
-        else:
-            return ast
-    else:
-        # todo: transform back to normal form? (maybe should be done in nast2ast)
-        return BashAST(kind=ast.kind,
-                       value=ast.value,
-                       children=[unmask_ast(c, name_subst_map)
-                                 for c in ast.children])
+    for arg in ast.args:
+        if arg.kind != 'flag':
+            # arg node
+            # todo: split subtoken (or reparse)
+            if arg.value in name_subst_map:
+                # masked arg
+                # the corresponding node should be processed first!
+                arg.value = name_subst_map[arg.value]
 
 
 def sem_trans_ast(ast):
@@ -92,12 +86,13 @@ def sem_trans_ast(ast):
         # get semantic info and transform the nast back to ast
         nast = lint.normalize_ast(tmp_line)
         masked_ast = nast2ast(nast)
-        assert masked_ast.kind == 'root' and len(masked_ast.children) == 1
-        util_node = masked_ast.children[0]
 
-        unmasked = unmask_ast(util_node, name_subst_map)
-        # todo: continue working on subparts if necessary (maybe via recurse?)
-        # todo: add back assign and redir
+        # todo: the corresponding node should be processed first (FIRST!)
+        unmasked = copy.deepcopy(masked_ast)
+        unmask_ast(unmasked, name_subst_map)
+        # add back assign and redir
+        unmasked.assign_list = ast.assign_list
+        unmasked.redir = ast.redir
         return unmasked
     else:
         # todo: recurse
@@ -106,7 +101,7 @@ def sem_trans_ast(ast):
 
 if __name__ == '__main__':
     line = input()
-    nast = get_nast(line)
-    ast = nast2ast(nast)
-    # ast = bash_loader.parse(line)
-    # sem_nast = sem_trans_ast(ast.last_cmd)
+    # nast = get_nast(line)
+    # ast = nast2ast(nast)
+    ast = bash_loader.parse(line)
+    sem_nast = sem_trans_ast(ast.last_cmd)
