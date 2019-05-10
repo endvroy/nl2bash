@@ -20,18 +20,30 @@ def get_nast(line):
 
 
 def nast2ast(nast):
-    # todo: need better structure
     # nast node types: root, utility, flag, argument
-    if not nast.children:
-        # leaf node
-        if nast.kind == 'argument':
-            return BashAST(kind=nast.arg_type, value=nast.value)
-        else:
-            # flag or utility
-            return BashAST(kind=nast.kind, value=nast.value)
+    assert nast.kind == 'root' and len(nast.children) == 1
+    util_node = nast.children[0]
+    prog = BashAST(kind='prog', parts=[BashAST(kind='VARNAME', value=util_node.value)])
+    args = [nast_arg2ast(c) for c in util_node.children]
+    ast = BashAST(kind='cmd', prog=prog, args=args,
+                  assign_list=[], redir=[])
+    return ast
+
+
+def nast_arg2ast(nast):
+    # leaf node
+    if nast.kind == 'argument':
+        ast = BashAST(kind=nast.arg_type, value=nast.value)
     else:
-        children = [nast2ast(n) for n in nast.children]
-        return BashAST(kind=nast.kind, value=nast.value, children=children)
+        # flag
+        ast = BashAST(kind=nast.kind, name=nast.value)
+        if nast.children:
+            assert len(nast.children) == 1
+            value = nast_arg2ast(nast.children[0])
+        else:
+            value = None
+        ast.value = value
+    return ast
 
 
 def unmask_ast(ast, name_subst_map):
@@ -45,7 +57,7 @@ def unmask_ast(ast, name_subst_map):
         else:
             return ast
     else:
-        # todo: transform back to normal form?
+        # todo: transform back to normal form? (maybe should be done in nast2ast)
         return BashAST(kind=ast.kind,
                        value=ast.value,
                        children=[unmask_ast(c, name_subst_map)
@@ -57,8 +69,7 @@ def sem_trans_ast(ast):
     if ast.kind == 'cmd':
         tmp_ast = BashAST(kind='cmd', prog=ast.prog, args=ast.args,
                           assign_list=[], redir=[])
-        # mask the args
-        # todo: gather info from children in case of substitution
+        # mask the args containing substitution
         name_subst_map = {}
         subst_template = '__SUBST_{}__'
         for i, arg in enumerate(tmp_ast.args):
@@ -95,7 +106,7 @@ def sem_trans_ast(ast):
 
 if __name__ == '__main__':
     line = input()
-    # nast = get_nast(line)
-    # ast = transform_nast(nast)
-    ast = bash_loader.parse(line)
-    sem_nast = sem_trans_ast(ast.last_cmd)
+    nast = get_nast(line)
+    ast = nast2ast(nast)
+    # ast = bash_loader.parse(line)
+    # sem_nast = sem_trans_ast(ast.last_cmd)
