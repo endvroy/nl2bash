@@ -49,54 +49,70 @@ def nast_arg2ast(nast):
 
 def unmask_ast(ast, name_subst_map):
     for arg in ast.args:
-        if arg.kind != 'flag':
-            # arg node
+        if arg.kind == 'flag':
+            if arg.value is not None:
+                arg = arg.value
+            else:
+                continue
+        # arg node
+        if arg.value in name_subst_map:
+            # masked arg
+            # the corresponding node should be processed first!
+            arg.value = name_subst_map[arg.value]
+        else:
             # todo: split subtoken (or reparse)
-            if arg.value in name_subst_map:
-                # masked arg
-                # the corresponding node should be processed first!
-                arg.value = name_subst_map[arg.value]
+            pass
 
 
 def sem_trans_ast(ast):
-    # todo: find the base case
-    if ast.kind == 'cmd':
-        tmp_ast = BashAST(kind='cmd', prog=ast.prog, args=ast.args,
-                          assign_list=[], redir=[])
-        # mask the args containing substitution
-        name_subst_map = {}
-        subst_template = '__SUBST_{}__'
-        for i, arg in enumerate(tmp_ast.args):
-            # only mask arg containing subst
-            for part in arg.parts:
-                if part.kind in ['cst',
-                                 'lpst',
-                                 'rpst',
-                                 'arith_subst',
-                                 'param_exp_hash',
-                                 'param_exp_repl',
-                                 'dquote_str']:
-                    mask = subst_template.format(i)
-                    name_subst_map[mask] = arg
-                    tmp_ast.args[i] = BashAST(kind='arg', parts=[BashAST(kind='MASK', value=mask)])
-                    break
-        tmp_tokens = get_normalize_tokens(tmp_ast)
-        tmp_line = ''.join(tmp_tokens)
+    if isinstance(ast, BashAST):
+        if ast.kind == 'cmd':
+            tmp_ast = BashAST(kind='cmd', prog=ast.prog, args=ast.args.copy(),
+                              assign_list=[], redir=[])
+            # mask the args containing substitution
+            name_subst_map = {}
+            subst_template = '__SUBST_{}__'
+            for i, arg in enumerate(tmp_ast.args):
+                # only mask arg containing subst
+                for part in arg.parts:
+                    if part.kind in ['cst',
+                                     'lpst',
+                                     'rpst',
+                                     'arith_subst',
+                                     'param_exp_hash',
+                                     'param_exp_repl',
+                                     'dquote_str']:
+                        mask = subst_template.format(i)
+                        name_subst_map[mask] = arg
+                        tmp_ast.args[i] = BashAST(kind='arg', parts=[BashAST(kind='MASK', value=mask)])
+                        break
+            tmp_tokens = get_normalize_tokens(tmp_ast)
+            tmp_line = ''.join(tmp_tokens)
 
-        # get semantic info and transform the nast back to ast
-        nast = lint.normalize_ast(tmp_line)
-        masked_ast = nast2ast(nast)
+            # get semantic info and transform the nast back to ast
+            nast = lint.normalize_ast(tmp_line)
+            masked_ast = nast2ast(nast)
 
-        # todo: the corresponding node should be processed first (FIRST!)
-        unmasked = copy.deepcopy(masked_ast)
-        unmask_ast(unmasked, name_subst_map)
-        # add back assign and redir
-        unmasked.assign_list = ast.assign_list
-        unmasked.redir = ast.redir
-        return unmasked
+            unmasked = copy.deepcopy(masked_ast)
+            # the corresponding node should be processed first
+            for k, v in name_subst_map.items():
+                name_subst_map[k] = sem_trans_ast(v)
+            unmask_ast(unmasked, name_subst_map)
+            # add back assign and redir
+            unmasked.assign_list = ast.assign_list
+            unmasked.redir = ast.redir
+            return unmasked
+        # recurse
+        else:
+            for k, v in ast.__dict__.items():
+                ast.__dict__[k] = sem_trans_ast(v)
+            return ast
+    elif isinstance(ast, list):
+        # parts
+        return [sem_trans_ast(x) for x in ast]
     else:
-        # todo: recurse
-        pass
+        # not an AST node
+        return ast
 
 
 if __name__ == '__main__':
@@ -104,4 +120,5 @@ if __name__ == '__main__':
     # nast = get_nast(line)
     # ast = nast2ast(nast)
     ast = bash_loader.parse(line)
-    sem_nast = sem_trans_ast(ast.last_cmd)
+    # sem_ast = copy.deepcopy(ast)
+    sem_ast = sem_trans_ast(ast)
