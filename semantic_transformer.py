@@ -58,10 +58,10 @@ def unmask_ast(ast, name_subst_map):
         if arg.value in name_subst_map:
             # masked arg
             # the corresponding node should be processed first!
-            arg.value = name_subst_map[arg.value]
+            arg.value = name_subst_map[arg.value].parts
         else:
-            # todo: split subtoken (or reparse)
-            pass
+            # split subtokens by reparsing
+            arg.value = reparse_arg(arg.value).parts
 
 
 def sem_trans_ast(ast):
