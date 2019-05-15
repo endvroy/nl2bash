@@ -79,8 +79,7 @@ def sem_trans_ast(ast):
                                      'lpst',
                                      'rpst',
                                      'arith_subst',
-                                     'param_exp_hash',
-                                     'param_exp_repl',
+                                     'param_exp',
                                      'dquote_str']:
                         mask = subst_template.format(i)
                         name_subst_map[mask] = arg
