@@ -34,7 +34,7 @@ def nast2ast(nast):
 def nast_arg2ast(nast):
     # leaf node
     if nast.kind == 'argument':
-        ast = BashAST(kind=nast.arg_type, value=nast.value)
+        ast = BashAST(kind=nast.arg_type, parts=nast.value)
     else:
         # flag
         ast = BashAST(kind=nast.kind, name=nast.value)
@@ -55,13 +55,13 @@ def unmask_ast(ast, name_subst_map):
             else:
                 continue
         # arg node
-        if arg.value in name_subst_map:
+        if arg.parts in name_subst_map:
             # masked arg
             # the corresponding node should be processed first!
-            arg.value = name_subst_map[arg.value].parts
+            arg.parts = name_subst_map[arg.parts].parts
         else:
             # split subtokens by reparsing
-            arg.value = reparse_arg(arg.value).parts
+            arg.parts = reparse_arg(arg.parts).parts
 
 
 def sem_trans_ast(ast):
@@ -113,6 +113,12 @@ def sem_trans_ast(ast):
         # not an AST node
         return ast
 
+
+# todo: transform to DRNN Node class and export
+# todo: create sketch
+# todo: export tokens for seq2seq
+# todo: create sketch for seq2seq
+# todo: fix errors in data
 
 if __name__ == '__main__':
     line = input()
