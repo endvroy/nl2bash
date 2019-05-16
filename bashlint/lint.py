@@ -402,12 +402,11 @@ def normalize_ast(cmd, recover_quotes=True, verbose=False):
                             new_command_node.parts = new_input
                             normalize_command(new_command_node, current)
                             if j < len(input):
-                                current.value += ('::' + input[j].word)
+                                # current.value += ('::' + input[j].word)
                                 bash_grammar.push(input[j], EXEC_COMMAND_S)
                             else:
                                 if verbose:
                                     print("Warning: -exec missing stop token - ; added")
-                                current.value += ('::' + ';')
                                 bash_grammar.push(';', EXEC_COMMAND_S)
                             i = j + 1
                         else:
