@@ -2,6 +2,7 @@ from bashlint import lint
 from bash_parser.bash_ast import BashAST
 from bash_parser.normalize_tokens import get_normalize_tokens
 from bash_parser import bash_loader
+from bashlint.bash import argument_types
 import copy
 
 
@@ -32,15 +33,17 @@ def nast2ast(nast):
 
 
 def nast_arg2ast(nast):
-    # leaf node
     if nast.kind == 'argument':
+        # leaf node
         ast = BashAST(kind=nast.arg_type, parts=nast.value)
+    elif nast.kind == 'utility':
+        ast = nast2ast(BashAST(kind='root', children=[nast]))
     else:
         # flag
         ast = BashAST(kind=nast.kind, name=nast.value)
         if nast.children:
-            assert len(nast.children) == 1
-            value = nast_arg2ast(nast.children[0])
+            # assert len(nast.children) == 1
+            value = [nast_arg2ast(nast.children[0])]
         else:
             value = None
         ast.value = value
@@ -48,13 +51,16 @@ def nast_arg2ast(nast):
 
 
 def unmask_ast(ast, name_subst_map):
+    nodes = []
     for arg in ast.args:
         if arg.kind == 'flag':
             if arg.value is not None:
-                arg = arg.value
-            else:
-                continue
-        # arg node
+                nodes.extend([x for x in arg.value if x.kind in argument_types])
+        elif arg.kind in argument_types:
+            # arg node
+            nodes.append(arg)
+
+    for arg in nodes:
         if arg.parts in name_subst_map:
             # masked arg
             # the corresponding node should be processed first!
@@ -87,9 +93,14 @@ def sem_trans_ast(ast):
                         break
             tmp_tokens = get_normalize_tokens(tmp_ast)
             tmp_line = ''.join(tmp_tokens)
-
+            if not tmp_line:
+                # only assignments
+                return ast
             # get semantic info and transform the nast back to ast
             nast = lint.normalize_ast(tmp_line)
+            if not nast:
+                # semantic parsing not available
+                return ast
             masked_ast = nast2ast(nast)
 
             unmasked = copy.deepcopy(masked_ast)
@@ -114,11 +125,11 @@ def sem_trans_ast(ast):
         return ast
 
 
-# todo: transform to DRNN Node class and export
+# todo: export semantic ast
+# todo: transform to DRNN Node class
 # todo: create sketch
 # todo: export tokens for seq2seq
 # todo: create sketch for seq2seq
-# todo: fix errors in data
 
 if __name__ == '__main__':
     line = input()
