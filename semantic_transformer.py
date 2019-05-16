@@ -8,9 +8,10 @@ import copy
 
 def reparse_arg(lexeme):
     input_stream = bash_loader.InputStream(lexeme)
-    lexer = bash_loader.BashLexer(input_stream)
+    lexer = bash_loader.PanicBashLexer(input_stream)
     stream = bash_loader.CommonTokenStream(lexer)
     parser = bash_loader.BashParser(stream)
+    parser._errHandler = bash_loader.BailErrorStrategy()
     tree = parser.arg()
     visitor = bash_loader.BashASTVisitor()
     ast = visitor.visit(tree)
