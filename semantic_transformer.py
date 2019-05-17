@@ -126,9 +126,6 @@ def sem_trans_ast(ast):
         return ast
 
 
-# todo: export semantic ast
-# todo: transform to DRNN Node class
-# todo: create sketch
 # todo: export tokens for seq2seq
 # todo: create sketch for seq2seq
 
