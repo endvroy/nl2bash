@@ -1,4 +1,4 @@
-from semantic_transformer import bash_loader, sem_trans_ast
+from semantic_transformer import bash_loader, sem_trans_ast, arg_types
 import pickle
 
 in_tmpl = '/Users/ruoyi/Projects/PycharmProjects/data_fixer/bash/{}.cm.filtered'
@@ -27,6 +27,8 @@ def main():
             l.append(sem_ast)
         with open(out_path, 'wb') as out_f:
             pickle.dump(l, out_f)
+
+    print(arg_types)
 
 
 if __name__ == '__main__':
