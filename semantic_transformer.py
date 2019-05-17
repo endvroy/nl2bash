@@ -51,15 +51,23 @@ def nast_arg2ast(nast):
     return ast
 
 
-def unmask_ast(ast, name_subst_map):
+def gather_arg_nodes(ast):
     nodes = []
-    for arg in ast.args:
-        if arg.kind == 'flag':
-            if arg.value is not None:
-                nodes.extend([x for x in arg.value if x.kind in argument_types])
-        elif arg.kind in argument_types:
-            # arg node
-            nodes.append(arg)
+    if ast.kind == 'flag':
+        if ast.value is not None:
+            for x in ast.value:
+                nodes.extend(gather_arg_nodes(x))
+    elif ast.kind in argument_types:
+        # ast node
+        nodes.append(ast)
+    elif ast.kind == 'cmd':
+        for arg in ast.args:
+            nodes.extend(gather_arg_nodes(arg))
+    return nodes
+
+
+def unmask_ast(ast, name_subst_map):
+    nodes = gather_arg_nodes(ast)
 
     for arg in nodes:
         if arg.parts in name_subst_map:
