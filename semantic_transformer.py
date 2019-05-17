@@ -161,9 +161,6 @@ def sem_trans_ast(ast):
         return ast
 
 
-# todo: export tokens for seq2seq
-# todo: create sketch for seq2seq
-
 if __name__ == '__main__':
     line = input()
     # nast = get_nast(line)
