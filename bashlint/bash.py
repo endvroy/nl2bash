@@ -351,7 +351,12 @@ pattern_argument_types = {
     'Regex',
     'File',
     'Directory',
-    'Path'
+    'Path',
+    'Format',
+    'Option',
+    'ReservedWord',
+    'Program',
+    'Bandwidth'
 }
 
 quantity_argument_types = {
