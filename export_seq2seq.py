@@ -5,6 +5,7 @@ import pickle
 IN_TMPL = '/Users/ruoyi/Projects/PycharmProjects/data_fixer/bash/{}.cm.filtered.ast.pkl'
 OUT_TMPL = '/Users/ruoyi/Projects/PycharmProjects/data_fixer/bash/{}.cm.filtered.tokens'
 
+SKETCH_TMPL = '/Users/ruoyi/Projects/PycharmProjects/data_fixer/bash/{}.cm.filtered.sketch'
 READBACK_TMPL = '/Users/ruoyi/Projects/PycharmProjects/data_fixer/bash/{}.cm.filtered.readback'
 
 if __name__ == '__main__':
