@@ -27,27 +27,51 @@ def nast2ast(nast):
     assert nast.kind == 'root' and len(nast.children) == 1
     util_node = nast.children[0]
     prog = BashAST(kind='prog', parts=[BashAST(kind='VARNAME', value=util_node.value)])
-    args = [nast_arg2ast(c) for c in util_node.children]
+    # args = [nast_arg2ast(c) for c in util_node.children]
+    args = []
+    for x in util_node.children:
+        r = nast_arg2ast(x)
+        if r is not None:
+            args.append(r)
     ast = BashAST(kind='cmd', prog=prog, args=args,
                   assign_list=[], redir=[])
     return ast
 
 
+arg_types = set()
+
+
 def nast_arg2ast(nast):
     if nast.kind == 'argument':
         # leaf node
-        ast = BashAST(kind=nast.arg_type, parts=nast.value)
+        arg_type = nast.arg_type
+        if not arg_type:
+            return None
+        if arg_type == 'command':
+            arg_type = 'Regex'
+        arg_types.add(arg_type)
+        ast = BashAST(kind=arg_type, parts=nast.value)
     elif nast.kind == 'utility':
         ast = nast2ast(BashAST(kind='root', children=[nast]))
-    else:
+    elif nast.kind in ['binarylogicop', 'unarylogicop', 'operator']:
+        ast = BashAST(kind=nast.kind, parts=nast.value)
+    elif nast.kind == 'commandsubstitution':
+        ast = nast2ast(BashAST(kind='root', children=[nast.children[0]]))
+    elif nast.kind == 'flag':
         # flag
         ast = BashAST(kind=nast.kind, name=nast.value)
         if nast.children:
             # assert len(nast.children) == 1
-            value = [nast_arg2ast(nast.children[0])]
+            value = []
+            for x in nast.children:
+                r = nast_arg2ast(x)
+                if r is not None:
+                    value.append(r)
         else:
             value = None
         ast.value = value
+    else:
+        raise ValueError('unknown nast kind {}'.format(nast.kind))
     return ast
 
 
@@ -57,7 +81,7 @@ def gather_arg_nodes(ast):
         if ast.value is not None:
             for x in ast.value:
                 nodes.extend(gather_arg_nodes(x))
-    elif ast.kind in argument_types:
+    elif ast.kind in argument_types | {'binarylogicop', 'unarylogicop', 'operator'}:
         # ast node
         nodes.append(ast)
     elif ast.kind == 'cmd':
@@ -95,7 +119,10 @@ def sem_trans_ast(ast):
                                      'rpst',
                                      'arith_subst',
                                      'param_exp',
-                                     'dquote_str']:
+                                     'squote_str',
+                                     'dquote_str'] \
+                            or (part.kind in ['ESC_CHAR', 'PUNC']
+                                and ('(' in part.value or ')' in part.value)):
                         mask = subst_template.format(i)
                         name_subst_map[mask] = arg
                         tmp_ast.args[i] = BashAST(kind='arg', parts=[BashAST(kind='MASK', value=mask)])
